@@ -1,0 +1,304 @@
+<!doctype html><html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnimeVerse</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background-color: #121212;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #1f1f1f;
+      padding: 20px;
+      font-size: 30px;
+      text-align: center;
+      color: #e91e63;
+      font-weight: bold;
+    }
+    .container {
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      background-color: #2c2c2c;
+      color: white;
+    }
+    input::placeholder, textarea::placeholder {
+      color: #aaa;
+    }
+    button {
+      background-color: #e91e63;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #c2185b;
+    }
+    .anime-card {
+      background: #1f1f1f;
+      margin: 15px 0;
+      padding: 15px;
+      border-radius: 15px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.05);
+    }
+    .anime-card img {
+      width: 100%;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+    .anime-card button {
+      margin-top: 10px;
+    }
+    .footer-buttons {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #1f1f1f;
+      display: none;
+      justify-content: space-around;
+      padding: 10px;
+      z-index: 999;
+    }
+    .footer-buttons.show {
+      display: flex;
+    }
+    .footer-buttons button {
+      flex: 1;
+      margin: 0 5px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <header>AnimeVerse</header>
+  <div class="container" id="app"></div>  <div class="footer-buttons" id="footer">
+    <button onclick="mostrarAnimes()">Pesquisar</button>
+    <button onclick="verFavoritos()">Minha Lista</button>
+    <button onclick="sair()">Sair</button>
+  </div>  <script>
+    let usuarioLogado = null;
+    let contas = JSON.parse(localStorage.getItem("contas")) || [];
+    let animes = JSON.parse(localStorage.getItem("animes")) || [];
+    let favoritos = JSON.parse(localStorage.getItem("favoritos")) || {};
+    let comentarios = JSON.parse(localStorage.getItem("comentarios")) || {};
+    let avaliacoes = JSON.parse(localStorage.getItem("avaliacoes")) || {};
+
+    function salvarDados() {
+      localStorage.setItem("contas", JSON.stringify(contas));
+      localStorage.setItem("animes", JSON.stringify(animes));
+      localStorage.setItem("favoritos", JSON.stringify(favoritos));
+      localStorage.setItem("comentarios", JSON.stringify(comentarios));
+      localStorage.setItem("avaliacoes", JSON.stringify(avaliacoes));
+    }
+
+    function mostrarBotoes() {
+      document.getElementById("footer").classList.toggle("show", usuarioLogado !== null);
+    }
+
+    function login(usuario, senha) {
+      if (usuario === "admsupremo" && senha === "admsupremo") {
+        usuarioLogado = "admsupremo";
+        montarPainelADM();
+      } else {
+        const conta = contas.find(c => c.usuario === usuario && c.senha === senha);
+        if (conta) {
+          usuarioLogado = conta.usuario;
+          mostrarAnimes();
+        } else {
+          alert("Usuário ou senha incorretos.");
+        }
+      }
+      mostrarBotoes();
+    }
+
+ function sair() {
+  usuarioLogado = null;
+  mostrarLogin();
+  mostrarBotoes();
+}
+
+    function cadastrarConta() {
+      const usuario = document.getElementById("cad-usuario").value;
+      const senha = document.getElementById("cad-senha").value;
+      if (usuario && senha) {
+        contas.push({ usuario, senha });
+        salvarDados();
+        alert("Conta cadastrada!");
+        location.reload();
+      }
+    }
+
+    function montarPainelADM() {
+      const app = document.getElementById("app");
+      app.innerHTML = `
+        <div>
+          <h2>Painel ADM - ${usuarioLogado}</h2>
+          <input type="text" id="anime-nome" placeholder="Nome do anime">
+          <input type="file" id="anime-img" accept="image/*">
+          <textarea id="anime-categoria" placeholder="Categoria"></textarea><button onclick="adicionarAnime()">Adicionar Anime</button>
+      <h3>Animes cadastrados</h3>
+      ${animes.map((anime, i) => `
+        <div class="anime-card">
+          <h4>${anime.nome}</h4>
+          <button onclick="removerAnime(${i})">Remover</button>
+        </div>`).join("")}
+    </div>
+  `;
+}
+
+function adicionarAnime() {
+  const nome = document.getElementById("anime-nome").value;
+  const categoria = document.getElementById("anime-categoria").value;
+  const imgInput = document.getElementById("anime-img");
+  const file = imgInput.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function (e) {
+    const imagemBase64 = e.target.result;
+    const novoAnime = { nome, categoria, imagem: imagemBase64 };
+    animes.push(novoAnime);
+    salvarDados();
+    montarPainelADM();
+  };
+
+  if (file) reader.readAsDataURL(file);
+}
+
+function removerAnime(index) {
+  animes.splice(index, 1);
+  salvarDados();
+  montarPainelADM();
+}
+
+function mostrarAnimes(filtro = "") {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <input type="text" placeholder="Buscar anime..." oninput="mostrarAnimes(this.value)">
+  `;
+  animes
+    .filter(a => a.nome.toLowerCase().includes(filtro.toLowerCase()))
+    .forEach(anime => {
+      const favorito = favoritos[usuarioLogado]?.includes(anime.nome);
+      const card = document.createElement("div");
+      card.className = "anime-card";
+      card.innerHTML = `
+        <h3>${anime.nome}</h3>
+        <p>${anime.categoria}</p>
+        <img src="${anime.imagem}">
+        <button onclick="favoritarAnime('${anime.nome}')">${favorito ? "Remover dos Favoritos" : "Favoritar"}</button>
+        <button onclick="abrirAnime('${anime.nome}')">Ver Detalhes</button>
+      `;
+      app.appendChild(card);
+    });
+}
+
+function abrirAnime(nome) {
+  const anime = animes.find(a => a.nome === nome);
+  const app = document.getElementById("app");
+  const coments = comentarios[nome] || [];
+  const media = calcularMedia(nome);
+  app.innerHTML = `
+    <div class="anime-card">
+      <h2>${anime.nome}</h2>
+      <p>${anime.categoria}</p>
+      <img src="${anime.imagem}">
+      <h4>Nota: ${media.toFixed(1)} / 5 (${(avaliacoes[nome]?.length || 0)} avaliações)</h4>
+      <input type="number" id="nota" min="1" max="5" placeholder="Avaliação (1 a 5)">
+      <input type="text" id="coment" placeholder="Seu comentário">
+      <button onclick="comentarAnime('${nome}')">Enviar</button>
+      <h4>Comentários:</h4>
+      ${coments.map(c => `<p><b>${c.user}</b>: ${c.texto} (${c.nota}/5)</p>`).join("")}
+      <button onclick="mostrarAnimes()">Voltar</button>
+    </div>
+  `;
+}
+
+function comentarAnime(nome) {
+  const nota = parseInt(document.getElementById("nota").value);
+  const texto = document.getElementById("coment").value;
+  if (!comentarios[nome]) comentarios[nome] = [];
+  comentarios[nome].push({ user: usuarioLogado, texto, nota });
+  if (!avaliacoes[nome]) avaliacoes[nome] = [];
+  avaliacoes[nome].push(nota);
+  salvarDados();
+  abrirAnime(nome);
+}
+
+function calcularMedia(nome) {
+  const notas = avaliacoes[nome] || [];
+  const total = notas.reduce((a, b) => a + b, 0);
+  return notas.length ? total / notas.length : 0;
+}
+
+function favoritarAnime(nome) {
+  if (!favoritos[usuarioLogado]) favoritos[usuarioLogado] = [];
+  const lista = favoritos[usuarioLogado];
+  const i = lista.indexOf(nome);
+  i === -1 ? lista.push(nome) : lista.splice(i, 1);
+  salvarDados();
+  mostrarAnimes();
+}
+
+function verFavoritos() {
+  if (!usuarioLogado) return;
+  const lista = favoritos[usuarioLogado] || [];
+  const app = document.getElementById("app");
+  app.innerHTML = `<h3>Minha Lista</h3>`;
+  animes
+    .filter(anime => lista.includes(anime.nome))
+    .forEach(anime => {
+      const card = document.createElement("div");
+      card.className = "anime-card";
+      card.innerHTML = `
+        <h3>${anime.nome}</h3>
+        <p>${anime.categoria}</p>
+        <img src="${anime.imagem}">
+        <button onclick="favoritarAnime('${anime.nome}')">Remover dos Favoritos</button>
+        <button onclick="abrirAnime('${anime.nome}')">Ver Detalhes</button>
+      `;
+      app.appendChild(card);
+    });
+}
+
+function mostrarLogin() {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <h2>Login</h2>
+    <input type="text" id="login-usuario" placeholder="Usuário">
+    <input type="password" id="login-senha" placeholder="Senha">
+    <button onclick="login(document.getElementById('login-usuario').value, document.getElementById('login-senha').value)">Entrar</button>
+    <button onclick="mostrarCadastro()">Cadastrar</button>
+  `;
+}
+
+function mostrarCadastro() {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <h2>Cadastrar Conta</h2>
+    <input type="text" id="cad-usuario" placeholder="Novo Usuário">
+    <input type="password" id="cad-senha" placeholder="Nova Senha">
+    <button onclick="cadastrarConta()">Criar Conta</button>
+    <button onclick="mostrarLogin()">Voltar</button>
+  `;
+}
+
+mostrarLogin();
+
+  </script>
+
+</body></html>
